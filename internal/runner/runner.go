@@ -5,6 +5,7 @@ package runner
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os/exec"
 )
 
@@ -39,7 +40,10 @@ func (r *Real) Run(ctx context.Context, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("run %s: %w", name, err)
+	}
+	return nil
 }
 
 // Output implements Runner.
@@ -48,11 +52,17 @@ func (r *Real) Output(ctx context.Context, name string, args ...string) ([]byte,
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
-	err := cmd.Run()
-	return buf.Bytes(), err
+	if err := cmd.Run(); err != nil {
+		return buf.Bytes(), fmt.Errorf("run %s: %w", name, err)
+	}
+	return buf.Bytes(), nil
 }
 
 // LookPath implements Runner.
 func (r *Real) LookPath(file string) (string, error) {
-	return exec.LookPath(file)
+	path, err := exec.LookPath(file)
+	if err != nil {
+		return "", fmt.Errorf("look path %s: %w", file, err)
+	}
+	return path, nil
 }
