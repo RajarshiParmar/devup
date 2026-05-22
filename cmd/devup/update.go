@@ -160,5 +160,8 @@ type gzTarReader struct {
 }
 
 func (r *gzTarReader) Close() error {
-	return r.gz.Close()
+	if err := r.gz.Close(); err != nil {
+		return fmt.Errorf("closing gzip reader: %w", err)
+	}
+	return nil
 }

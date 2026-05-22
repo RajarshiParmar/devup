@@ -52,7 +52,10 @@ func Exists() (bool, error) {
 	if os.IsNotExist(err) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, fmt.Errorf("checking config file: %w", err)
+	}
+	return true, nil
 }
 
 // Write serializes the config to YAML and writes it to the default path.
