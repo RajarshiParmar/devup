@@ -48,3 +48,9 @@ func IsInstalled(r runner.Runner) bool {
 	}
 	return false
 }
+
+// IsRunning reports whether OrbStack is currently running.
+func IsRunning(ctx context.Context, r runner.Runner) bool {
+	err := r.Run(ctx, "orb", "status")
+	return err == nil
+}

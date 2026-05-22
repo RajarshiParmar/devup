@@ -53,6 +53,34 @@ func IsReady(ctx context.Context, r runner.Runner) bool {
 	return err == nil
 }
 
+// RunningContainers returns the names of running containers.
+// If dir is non-empty, it filters to containers from a compose project in that directory.
+func RunningContainers(ctx context.Context, r runner.Runner, dir string) ([]string, error) {
+	args := []string{"ps", "--format", "{{.Names}}"}
+	if dir != "" {
+		args = []string{"compose", "-f", dir + "/docker-compose.yml", "ps", "--format", "{{.Names}}", "--status", "running"}
+	}
+
+	out, err := r.Output(ctx, "docker", args...)
+	if err != nil {
+		// If compose file doesn't exist, fall back to all containers.
+		if dir != "" {
+			out, err = r.Output(ctx, "docker", "ps", "--format", "{{.Names}}")
+			if err != nil {
+				return nil, fmt.Errorf("docker ps: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("docker ps: %w", err)
+		}
+	}
+
+	raw := strings.TrimSpace(string(out))
+	if raw == "" {
+		return nil, nil
+	}
+	return strings.Split(raw, "\n"), nil
+}
+
 // WaitReady polls the Docker engine every 2 s until it is ready or
 // timeout is exceeded. It returns an error if the deadline is reached
 // or the context is cancelled.
