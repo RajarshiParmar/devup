@@ -111,3 +111,32 @@ func WaitReady(ctx context.Context, r runner.Runner, timeout time.Duration, prog
 		}
 	}
 }
+
+// StopContainers stops containers in the given project directory using docker compose.
+// If dir is empty, it stops all running containers.
+func StopContainers(ctx context.Context, r runner.Runner, dir string) error {
+	if dir != "" {
+		err := r.Run(ctx, "docker", "compose", "-f", dir+"/docker-compose.yml", "down")
+		if err != nil {
+			// Fallback: try without explicit file (rely on cwd-based compose).
+			slog.Debug("compose down with -f failed, trying stop all", "err", err)
+			return r.Run(ctx, "docker", "compose", "down")
+		}
+		return nil
+	}
+
+	// Stop all running containers.
+	out, err := r.Output(ctx, "docker", "ps", "-q")
+	if err != nil {
+		return fmt.Errorf("listing containers: %w", err)
+	}
+	ids := strings.TrimSpace(string(out))
+	if ids == "" {
+		return nil // nothing to stop
+	}
+	args := append([]string{"stop"}, strings.Split(ids, "\n")...)
+	if err := r.Run(ctx, "docker", args...); err != nil {
+		return fmt.Errorf("stopping containers: %w", err)
+	}
+	return nil
+}
