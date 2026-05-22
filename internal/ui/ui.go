@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/gen2brain/beeep"
 )
 
 // Spinner animation frames.
@@ -181,4 +182,10 @@ func SetupLogger(verbose bool) {
 	}
 	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
 	slog.SetDefault(slog.New(h))
+}
+
+// Notify sends a desktop notification. It silently does nothing on failure
+// to avoid disrupting the CLI flow.
+func (u *UI) Notify(title, message string) {
+	_ = beeep.Notify(title, message, "")
 }

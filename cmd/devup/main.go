@@ -80,12 +80,17 @@ func newRootCmd() *cobra.Command {
 	root.Flags().BoolVar(&f.upgrade, "upgrade", false, "run brew update && upgrade before starting (env: DEVUP_UPGRADE)")
 	root.Flags().BoolVar(&f.dryRun, "dry-run", false, "print commands without executing them")
 
+	// Notification flag (persistent so restart can use it too).
+	pf.Bool("notify", true, "send desktop notification on completion (env: DEVUP_NOTIFY)")
+
 	// Bind flags to viper so env vars + config file override defaults.
 	_ = viper.BindPFlag("dir", root.Flags().Lookup("dir"))
 	_ = viper.BindPFlag("timeout", root.Flags().Lookup("timeout"))
 	_ = viper.BindPFlag("upgrade", root.Flags().Lookup("upgrade"))
 	_ = viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
+	_ = viper.BindPFlag("notify", root.PersistentFlags().Lookup("notify"))
 
+	viper.SetDefault("notify", true)
 	viper.SetEnvPrefix("DEVUP")
 	viper.AutomaticEnv()
 	viper.SetConfigName("config")
@@ -190,6 +195,11 @@ func runStart(ctx context.Context, f *globalFlags) error {
 	totalElapsed := time.Since(totalStart)
 	fmt.Println()
 	u.Success("All done in %s", formatDuration(totalElapsed))
+
+	// Desktop notification.
+	if viper.GetBool("notify") {
+		u.Notify("devup", fmt.Sprintf("Environment ready in %s", formatDuration(totalElapsed)))
+	}
 
 	return nil
 }

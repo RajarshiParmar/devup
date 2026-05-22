@@ -118,5 +118,10 @@ func runRestart(ctx context.Context, f *globalFlags, all bool) error {
 	fmt.Println()
 	u.Success("Restarted in %s", formatDuration(totalElapsed))
 
+	// Desktop notification.
+	if viper.GetBool("notify") {
+		u.Notify("devup", fmt.Sprintf("Restarted in %s", formatDuration(totalElapsed)))
+	}
+
 	return nil
 }
