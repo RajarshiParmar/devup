@@ -121,58 +121,84 @@ func runStart(ctx context.Context, f *globalFlags) error {
 		u.Warn("dry-run mode — no commands will be executed")
 	}
 
+	totalStart := time.Now()
+
 	// Step 1: Optional brew upgrade.
 	if doUpgrade {
-		u.Step("running brew update && brew upgrade")
-		if !f.dryRun {
-			if err := brew.UpdateAndUpgrade(ctx, r); err != nil {
-				u.Error("brew upgrade failed: %v", err)
+		if f.dryRun {
+			u.Step("running brew update && brew upgrade (skipped: dry-run)")
+		} else {
+			_, err := u.SpinStep("Updating Homebrew", func() error {
+				return brew.UpdateAndUpgrade(ctx, r)
+			})
+			if err != nil {
 				return err
 			}
 		}
-		u.Success("homebrew packages up to date")
 	}
 
 	// Step 2: Switch Docker context to orbstack.
-	u.Step("checking Docker context")
-	if !f.dryRun {
-		if err := docker.SwitchContext(ctx, r, "orbstack"); err != nil {
+	if f.dryRun {
+		u.Step("checking Docker context (skipped: dry-run)")
+	} else {
+		_, err := u.SpinStep("Switching Docker context", func() error {
+			return docker.SwitchContext(ctx, r, "orbstack")
+		})
+		if err != nil {
 			u.Warn("could not switch Docker context: %v", err)
-		} else {
-			u.Success("Docker context: orbstack")
 		}
 	}
 
 	// Step 3: Ensure Docker engine is running.
 	if !f.dryRun && !docker.IsReady(ctx, r) {
-		u.Step("Docker engine not running — starting OrbStack")
-		if err := orbstack.Start(ctx, r); err != nil {
-			u.Error("failed to start OrbStack: %v", err)
-			return err
-		}
-
-		u.Step("waiting for Docker engine (timeout: %s)", timeout)
-		err := docker.WaitReady(ctx, r, timeout, func(elapsed time.Duration) {
-			u.Step("still waiting... %s elapsed", elapsed.Round(time.Second))
+		_, err := u.SpinStep("Starting OrbStack", func() error {
+			return orbstack.Start(ctx, r)
 		})
 		if err != nil {
-			u.Error("%v", err)
+			return err
+		}
+
+		_, err = u.SpinStep(fmt.Sprintf("Waiting for Docker engine (timeout: %s)", timeout), func() error {
+			return docker.WaitReady(ctx, r, timeout, func(_ time.Duration) {})
+		})
+		if err != nil {
 			return err
 		}
 	}
-	u.Success("Docker engine ready")
+	if !f.dryRun {
+		u.Success("Docker engine ready")
+	}
 
 	// Step 4: Run make start.
-	u.Step("running make start in %s", dir)
-	if !f.dryRun {
-		if err := devmake.Start(ctx, r, dir); err != nil {
-			u.Error("%v", err)
+	if f.dryRun {
+		u.Step("running make start in %s (skipped: dry-run)", dir)
+	} else {
+		_, err := u.SpinStep(fmt.Sprintf("Running make start in %s", dir), func() error {
+			return devmake.Start(ctx, r, dir)
+		})
+		if err != nil {
 			return err
 		}
 	}
-	u.Success("environment is up")
+
+	// Summary.
+	totalElapsed := time.Since(totalStart)
+	fmt.Println()
+	u.Success("All done in %s", formatDuration(totalElapsed))
 
 	return nil
+}
+
+// formatDuration formats a duration for the summary line.
+func formatDuration(d time.Duration) string {
+	switch {
+	case d < time.Second:
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	case d < time.Minute:
+		return fmt.Sprintf("%.1fs", d.Seconds())
+	default:
+		return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
 }
 
 // ─── version ─────────────────────────────────────────────────────────────────
