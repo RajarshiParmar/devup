@@ -97,6 +97,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newDoctorCmd(f))
 	root.AddCommand(newInitCmd(f))
 	root.AddCommand(newStatusCmd(f))
+	root.AddCommand(newStopCmd(f))
 
 	// Wire context cancellation to OS signals.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
