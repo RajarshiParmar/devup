@@ -48,3 +48,20 @@ func IsInstalled(r runner.Runner) bool {
 	}
 	return false
 }
+
+// IsRunning reports whether OrbStack is currently running.
+func IsRunning(ctx context.Context, r runner.Runner) bool {
+	err := r.Run(ctx, "orb", "status")
+	return err == nil
+}
+
+// Stop attempts to stop the OrbStack engine via the CLI.
+func Stop(ctx context.Context, r runner.Runner) error {
+	if _, err := r.LookPath("orb"); err != nil {
+		return fmt.Errorf("orb CLI not found: %w", err)
+	}
+	if err := r.Run(ctx, "orb", "stop"); err != nil {
+		return fmt.Errorf("orb stop: %w", err)
+	}
+	return nil
+}
